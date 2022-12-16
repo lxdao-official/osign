@@ -1,0 +1,45 @@
+generator client {
+    provider        = "prisma-client-js"
+    previewFeatures = ["dataProxy"]
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+enum Status {
+    // 创建
+    CREATED
+    // 过期
+    EXPRIED
+    // 签名结束
+    SIGNED
+}
+
+model Offers {
+    id       String @id @default(uuid())
+    // 发起者
+    launcher String
+
+    bussiness String
+
+    // offer 状态
+    status     Int  @default(0)
+    // 静态信息，json 对象
+    staticData Json @default("{}")
+    // 附加信息，json 对象
+    extData    Json @default("{}")
+
+    // 过期时间
+    expiresAt DateTime
+
+    // 签名者
+    signers String[] @default([])
+
+    // 签名数据，Record<address,signature>
+    signdata Json @default("{}")
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
