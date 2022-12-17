@@ -1,16 +1,19 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
-import { recoverPersonalSignature } from 'eth-sig-util';
+import { recoverTypedSignature_v4 } from 'eth-sig-util';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '../../lib/prisma';
 
 type Data = {
   name: string;
 };
-
+import { runMiddleware, cors } from './../../lib/cors';
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
+  // Run the middleware
+  await runMiddleware(req, res, cors);
+
   if (req.method == 'POST') {
     const body = req.body;
     if (!body.launcher) {
@@ -32,21 +35,45 @@ export default async function handler(
     if (!body.signature) {
       return res.status(400).json({ message: 'Missing signature' });
     }
+    if (!body.domain) {
+      return res.status(400).json({ message: 'Missing domain' });
+    }
+    if (!body.types) {
+      return res.status(400).json({ message: 'Missing types' });
+    }
+    if (!body.primaryType) {
+      return res.status(400).json({ message: 'Missing primaryType' });
+    }
 
     try {
-      const recoveredAddr = recoverPersonalSignature({
-        data: `I aggree to create offer detail: ${JSON.stringify(
-          body.data,
-          null,
-          2,
-        )} \nWallet address:${body.launcher}.`,
-        sig: body.signature,
-      });
+      let messageParams: any = {};
+      const data = {
+        domain: body.domain,
+        types: body.types,
+        message: body.data,
+        primaryType: body.primaryType,
+      };
+      messageParams.sig = body.signature;
+      messageParams.data = data;
+      console.log('messageParams', JSON.stringify(messageParams, null, 2));
+      const recoveredAddr = recoverTypedSignature_v4(messageParams);
+      console.log('recoveredAddr', recoveredAddr);
+      // console.log(recoverTypedSignature(messageParams));
+      // const recoveredAddr = recoverPersonalSignature({
+      //   data: `I aggree to create offer detail: ${JSON.stringify(
+      //     body.data,
+      //     null,
+      //     2,
+      //   )} \nWallet address:${body.launcher}.`,
+      //   sig: body.signature,
+      // });
       if (
         !recoveredAddr ||
         recoveredAddr.toLowerCase() != body.launcher.toLowerCase()
       ) {
-        return res.status(400).json({ message: 'invalid signature' });
+        return res
+          .status(400)
+          .json({ message: 'invalid signature, not launcher' });
       }
       const offer = await prisma.offers.create({
         data: {
@@ -61,6 +88,7 @@ export default async function handler(
         data: offer,
       });
     } catch (e: any) {
+      console.error(e);
       return res
         .status(400)
         .json({ message: 'create offer error: ' + e.message });
