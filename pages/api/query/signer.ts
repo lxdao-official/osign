@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '../../../lib/prisma';
 import { recoverPersonalSignature } from 'eth-sig-util';
+import { cors, runMiddleware } from '../../../lib/cors';
 type Data = {
   name: string;
 };
@@ -11,6 +12,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
+  // Run the middleware
+  await runMiddleware(req, res, cors);
   if (req.method == 'GET') {
     if (!req.query.signer) {
       return res.status(400).json({ message: 'Missing launcher' });
