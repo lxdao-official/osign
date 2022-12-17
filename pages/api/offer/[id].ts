@@ -2,7 +2,10 @@
 import { Prisma } from '@prisma/client';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '../../../lib/prisma';
-import { recoverPersonalSignature } from 'eth-sig-util';
+import {
+  recoverPersonalSignature,
+  recoverTypedSignature_v4,
+} from 'eth-sig-util';
 type Data = {
   name: string;
 };
@@ -30,6 +33,7 @@ export default async function handler(
     const signature = req.body.signature;
     const id = req.query.id as string;
     const data = req.body.data;
+    const body = req.body;
 
     if (!signer) {
       return res.status(400).json({ message: 'Missing signer' });
@@ -57,24 +61,38 @@ export default async function handler(
     if (offer.signdata && offer.signdata[signer]) {
       return res.status(400).json({ message: 'already signed' });
     }
+    if (!body.domain) {
+      return res.status(400).json({ message: 'Missing domain' });
+    }
+    if (!body.types) {
+      return res.status(400).json({ message: 'Missing types' });
+    }
+    if (!body.primaryType) {
+      return res.status(400).json({ message: 'Missing primaryType' });
+    }
 
     try {
-      const recoveredAddr = recoverPersonalSignature({
-        data: `I am sign for the offer: ${id} \nOffer detail: ${JSON.stringify(
-          offer.staticData,
-          null,
-          2,
-        )} \nWallet address:${signer}.`,
-        sig: signature,
-      });
-      console.log(
-        `I am sign for the offer: ${id} \nOffer detail: ${JSON.stringify(
-          offer.staticData,
-          null,
-          2,
-        )} \nWallet address:${signer}.`,
-      );
-      console.log(recoveredAddr, signer, signature);
+      let messageParams: any = {};
+      const data = {
+        domain: body.domain,
+        types: body.types,
+        message: offer.staticData,
+        primaryType: body.primaryType,
+      };
+      messageParams.sig = body.signature;
+      messageParams.data = data;
+      const recoveredAddr = recoverTypedSignature_v4(messageParams);
+      console.log('recoveredAddr', recoveredAddr);
+      // console.log(recoverTypedSignature(messageParams));
+      // const recoveredAddr = recoverPersonalSignature({
+      //   data: `I aggree to create offer detail: ${JSON.stringify(
+      //     body.data,
+      //     null,
+      //     2,
+      //   )} \nWallet address:${body.launcher}.`,
+      //   sig: body.signature,
+      // });
+
       if (
         !recoveredAddr ||
         recoveredAddr.toLowerCase() != signer.toLowerCase()
