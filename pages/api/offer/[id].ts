@@ -76,7 +76,7 @@ export default async function handler(
 
     try {
       let messageParams: any = {};
-      const data = {
+      const data: any = {
         domain: body.domain,
         types: body.types,
         message: offer.staticData,
