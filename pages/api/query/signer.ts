@@ -16,14 +16,17 @@ export default async function handler(
       return res.status(400).json({ message: 'Missing launcher' });
     }
     const status = req.query.status;
-    if (!status) return res.status(400).json({ message: 'Missing status' });
 
     const offers = await prisma.offers.findMany({
       where: {
         signers: {
           has: req.query.signer as string,
         },
-        status: Number(status),
+        ...(status
+          ? {
+              status: Number(status),
+            }
+          : {}),
       },
     });
     if (offers) {
